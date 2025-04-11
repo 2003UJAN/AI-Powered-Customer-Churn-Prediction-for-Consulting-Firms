@@ -1,31 +1,51 @@
 import streamlit as st
-import pandas as pd
-import joblib
+import numpy as np
+from utils.churn_utils import load_xgboost_model, load_scaler, preprocess_input, predict_churn
 
-st.set_page_config(page_title="M&A Success Predictor", layout="centered", page_icon="📈")
+# 🎨 Page Config
+st.set_page_config(page_title="Customer Churn Predictor", page_icon="📉", layout="centered")
 
-st.markdown("<h1 style='text-align: center; color: #ff4b4b;'>💼 M&A Deal Success Predictor 🔮</h1>", unsafe_allow_html=True)
-st.write("Fill in the financials of the M&A deal to predict its success probability.")
+# 🎯 Load Model & Scaler
+model = load_xgboost_model()
+scaler = load_scaler()
 
-model = joblib.load("model/ma_model.pkl")
+# 🧑‍💼 Sidebar Inputs
+st.sidebar.title("🔧 Customer Profile Inputs")
+tenure = st.sidebar.slider("📆 Tenure (months)", 1, 60, 12)
+monthly_spend = st.sidebar.slider("💰 Monthly Spend ($)", 100, 2000, 500)
+satisfaction_score = st.sidebar.slider("😊 Satisfaction Score (1-5)", 1, 5, 3)
+support_tickets = st.sidebar.slider("🎫 Support Tickets Last 6 Months", 0, 10, 2)
+contract_type = st.sidebar.selectbox("📝 Contract Type", ["Fixed", "Flexible"])
 
-# User Inputs
-acquirer_revenue = st.number_input("Acquirer Revenue ($)", value=50000000)
-target_revenue = st.number_input("Target Revenue ($)", value=20000000)
-deal_value = st.number_input("Deal Value ($)", value=100000000)
-industry_match = st.selectbox("Industry Match?", ["Yes", "No"])
-market_sentiment = st.slider("Market Sentiment (0-1)", 0.0, 1.0, 0.75)
-prior_deals = st.number_input("Prior Deals by Acquirer", value=3)
+# 🎛️ Main UI
+st.markdown("""
+    <h1 style='text-align: center; color: #FF4B4B;'>🚨 AI-Powered Churn Prediction</h1>
+    <p style='text-align: center; color: #6c757d;'>Get customer churn risk instantly and plan smart retention strategies.</p>
+    """, unsafe_allow_html=True)
 
-# Convert to binary
-industry_match_val = 1 if industry_match == "Yes" else 0
+# 🧮 Prediction Trigger
+if st.button("📊 Predict Churn"):
+    input_data = {
+        'Tenure': tenure,
+        'MonthlySpend': monthly_spend,
+        'SatisfactionScore': satisfaction_score,
+        'SupportTickets': support_tickets,
+        'ContractType': contract_type
+    }
 
-# Predict
-if st.button("💡 Predict Deal Success"):
-    input_data = pd.DataFrame([[acquirer_revenue, target_revenue, deal_value, industry_match_val, market_sentiment, prior_deals]],
-                              columns=["acquirer_revenue", "target_revenue", "deal_value", "industry_match", "market_sentiment", "prior_deals_acquirer"])
-    prob = model.predict_proba(input_data)[0][1]
-    st.success(f"🧠 Predicted Success Probability: **{prob * 100:.2f}%**")
+    features = preprocess_input(input_data, scaler)
+    prediction, probability = predict_churn(features, model)
 
-    if prob > 0.7:
-        st.balloons()
+    # 🎉 Output
+    if prediction == 1:
+        st.error(f"❌ High Risk: Customer likely to churn. Probability: {probability:.2f}")
+        st.markdown("<span style='color:red;'>💡 Consider reaching out with a retention offer.</span>", unsafe_allow_html=True)
+    else:
+        st.success(f"✅ Low Risk: Customer likely to stay. Probability: {probability:.2f}")
+        st.markdown("<span style='color:green;'>🎉 Great! Focus on customer satisfaction.</span>", unsafe_allow_html=True)
+
+# 💡 Footer
+st.markdown("""
+    <hr>
+    <small style='color: #999;'>Built with ❤️ using Streamlit, XGBoost, and Python</small>
+""", unsafe_allow_html=True)
