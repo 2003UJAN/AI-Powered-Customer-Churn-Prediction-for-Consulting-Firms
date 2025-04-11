@@ -1,48 +1,37 @@
-import pandas as pd
-import numpy as np
+# churn_utils.py
+
 import pickle
-import os
+import numpy as np
+import pandas as pd
 
-# Load the XGBoost model
-def load_xgboost_model(model_path='models/xgboost_churn_model.pkl'):
-    with open(model_path, 'rb') as file:
-        model = pickle.load(file)
-    return model
+# 📥 Load model
+def load_xgboost_model(path='models/xgb_model.pkl'):
+    with open(path, 'rb') as f:
+        return pickle.load(f)
 
-# Load the Scaler
-def load_scaler(scaler_path='models/scaler.pkl'):
-    with open(scaler_path, 'rb') as file:
-        scaler = pickle.load(file)
-    return scaler
+# 📥 Load scaler
+def load_scaler(path='models/scaler.pkl'):
+    with open(path, 'rb') as f:
+        return pickle.load(f)
 
-# Preprocess input data for prediction
+# 📥 Load feature names
+def load_feature_names(path='models/feature_names.pkl'):
+    with open(path, 'rb') as f:
+        return pickle.load(f)
+
+# 🧼 Preprocess input
 def preprocess_input(input_data, scaler):
-    """
-    input_data: dict
-        e.g., {
-            'Tenure': 12,
-            'MonthlySpend': 500,
-            'SatisfactionScore': 3,
-            'SupportTickets': 2,
-            'ContractType': 'Fixed'
-        }
-    """
     df = pd.DataFrame([input_data])
-    
-    # Convert categorical to numeric
     df['ContractType'] = df['ContractType'].apply(lambda x: 1 if x == 'Fixed' else 0)
-    
-    # Scale numerical features
-    features = scaler.transform(df)
-    return features
 
-# Predict churn probability
+    # Align feature order
+    feature_names = load_feature_names()
+    df = df.reindex(columns=feature_names)
+
+    return scaler.transform(df)
+
+# 🔮 Predict churn
 def predict_churn(features, model):
-    """
-    features: np.array of shape (1, num_features)
-    model: trained XGBoost model
-    Returns: probability of churn
-    """
     prob = model.predict_proba(features)[0][1]
-    prediction = int(prob >= 0.5)
+    prediction = int(prob > 0.5)
     return prediction, prob
